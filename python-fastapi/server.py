@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import json
+import multiprocessing
 
 from fastapi import FastAPI, HTTPException, Request, Response
 
@@ -35,6 +36,7 @@ class FuncApp(FastAPI):
 
         # init the class members
         self.userfunc = None
+        self.user_proc = None
         self.logger = logging.getLogger()
         self.ch = logging.StreamHandler(sys.stdout)
 
@@ -54,12 +56,22 @@ class FuncApp(FastAPI):
             self.logger.info('Found state.json')
             specialize_info = read_specialize_info()
             self.userfunc = self._load_v2(specialize_info)
+            if self.user_proc is not None:
+                self.user_proc.terminate()
+            print(self.userfunc)
+            self.user_proc = multiprocessing.Process(target=self.userfunc)
+            self.user_proc.start()
             self.logger.info('Loaded user function {}'.format(specialize_info))
 
     async def load(self):
         self.logger.info("/specialize called")
         # load user function from codepath
         self.userfunc = import_src("/userfunc/user").main
+        if self.user_proc is not None:
+            self.user_proc.terminate()
+        print(self.userfunc)
+        self.user_proc = multiprocessing.Process(target=self.userfunc)
+        self.user_proc.start()
         return ""
 
     async def loadv2(self, request: Request):
@@ -67,21 +79,18 @@ class FuncApp(FastAPI):
         if check_specialize_info_exists():
             self.logger.warning("Found state.json, overwriting")
         self.userfunc = self._load_v2(specialize_info)
+
+        if self.user_proc is not None:
+            self.user_proc.terminate()
+        print(self.userfunc)
+        self.user_proc = multiprocessing.Process(target=self.userfunc)
+        self.user_proc.start()
+
         store_specialize_info(specialize_info)
         return ""
 
     async def healthz(self):
         return "", Response(status_code=200)
-
-    async def userfunc_call(self, request: Request):
-        if self.userfunc is None:
-            print("userfunc is None")
-            return Response(status_code=500)
-        print(self.userfunc)
-        if asyncio.iscoroutinefunction(self.userfunc):
-            return await self.userfunc(request)
-        else:
-            return self.userfunc(request)
 
     def _load_v2(self, specialize_info):
         filepath = specialize_info['filepath']
@@ -131,9 +140,6 @@ def main():
     app.add_api_route(path='/v2/specialize', endpoint=app.loadv2, methods=["POST"])
     app.add_api_route(path='/healthz', endpoint=app.healthz, methods=["GET"])
 
-    app.add_api_route(path='/', endpoint=app.userfunc_call, methods=["GET", "POST", "PUT", "HEAD", "OPTIONS", "DELETE"])
-    app.add_api_route(path='/{path_name:path}', endpoint=app.userfunc_call, methods=["GET", "POST", "PUT", "HEAD", "OPTIONS", "DELETE"])
-
-    uvicorn.run(app, host="0.0.0.0", port=RUNTIME_PORT, log_level=LOG_LEVEL)
+    uvicorn.run(app, host="0.0.0.0", port=9999, log_level=LOG_LEVEL)
 
 main()
