@@ -41,6 +41,8 @@ class FuncApp(FastAPI):
             specialize_info = read_specialize_info()
             self._run_process(specialize_info)
 
+        self.log_fd = open("/logs/output.log", "wt")
+
     async def load(self):
         # load user function from codepath
         self._run_process({"filepath": "/userfunc/user", "functionName": "main"})
@@ -49,8 +51,8 @@ class FuncApp(FastAPI):
     def _run_process(self, specialize_info):
         self.user_proc = subprocess.Popen(
             [sys.executable, "-u", "launcher.py", specialize_info['filepath'], specialize_info['functionName']],
-            stdout=sys.stdout,
-            stderr=sys.stderr,
+            stdout=self.log_fd,
+            stderr=self.log_fd,
         )
 
     async def loadv2(self, request: Request):
@@ -63,6 +65,9 @@ class FuncApp(FastAPI):
 
     async def healthz(self):
         return "", Response(status_code=200)
+
+    def __del__(self):
+        self.log_fd.close()
 
 def main():
     import uvicorn

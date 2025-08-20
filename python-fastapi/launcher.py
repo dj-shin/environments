@@ -2,6 +2,7 @@
 import importlib
 import os
 import sys
+import runpy
 
 USERFUNCVOL = os.environ.get("USERFUNCVOL", "/userfunc")
 
@@ -37,13 +38,12 @@ def load_v2(filepath, handler):
         mod = import_src(filepath)
 
     # load user function from module
-    return getattr(mod, funcName)
+    runpy.run_path(mod.__file__, run_name="__main__")
 
 
 def main():
     filepath = sys.argv[1]
     handler = sys.argv[2]
-    f = load_v2(filepath, handler)
-    f()
+    load_v2(filepath, handler)
 
 main()

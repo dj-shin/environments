@@ -5,7 +5,7 @@ FROM ${BUILDER_IMAGE}
 FROM python:${PY_BASE_IMG}
 
 COPY --from=0 /builder /builder
-RUN apk add --update --no-cache python3-dev build-base gcc bash
+RUN apk add --update --no-cache python3-dev build-base gcc bash git
 
 ADD defaultBuildCmd /usr/local/bin/build
 
