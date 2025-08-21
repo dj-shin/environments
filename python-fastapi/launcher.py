@@ -3,11 +3,20 @@ import importlib
 import os
 import sys
 import runpy
+from pathlib import Path
 
 USERFUNCVOL = os.environ.get("USERFUNCVOL", "/userfunc")
 
 def import_src(path):
     return importlib.machinery.SourceFileLoader("mod", path).load_module()
+
+def get_envs() -> dict[str, str]:
+    result: dict[str, str] = {}
+    for path, _, env_keys in os.walk('/configs'):
+        for env_key in env_keys:
+            env_value = Path(f"{path}/{env_key}").read_text()
+            result[env_key] = env_value
+    return result
 
 def load_v2(filepath, handler):
     # handler looks like `path.to.module.function`
@@ -38,6 +47,7 @@ def load_v2(filepath, handler):
         mod = import_src(filepath)
 
     # load user function from module
+    os.environ.update(get_envs())
     runpy.run_path(mod.__file__, run_name="__main__")
 
 
